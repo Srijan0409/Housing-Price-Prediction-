@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Housing Price Predictor</title>
+    <!-- Use basic system fonts and pure CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Background pulsing particles/gradient overlay -->
+    <div class="bg-pulse"></div>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <header class="hero">
+            <div class="hero-content">
+                <div class="icon-wrapper">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-home"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                </div>
+                <h1>Housing Price Predictor</h1>
+                <p>AI-driven market valuation. Predict prices intelligently.</p>
+            </div>
+            
+            <!-- Animated chart line simulating "stethoscope"/market trend -->
+            <div class="animated-trendline">
+                <svg viewBox="0 0 500 150" preserveAspectRatio="none">
+                    <path class="trend-path" d="M0,100 C50,100 100,50 150,80 C200,110 250,40 300,70 C350,100 400,20 450,40 L500,20" />
+                </svg>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div class="dashboard">
+            
+            <!-- Input Form Section (Glassmorphism) -->
+            <section class="card input-section">
+                <h2>Predict Property Value</h2>
+                <form id="prediction-form">
+                    <div class="input-group">
+                        <input type="number" id="area" step="any" required placeholder=" ">
+                        <label for="area">Area (sq ft)</label>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" id="bedrooms" required placeholder=" ">
+                        <label for="bedrooms">Bedrooms</label>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" id="age" required placeholder=" ">
+                        <label for="age">Age of Property (Years)</label>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn" class="glow-on-hover">
+                        <span>Predict Value</span>
+                        <div class="spinner d-none" id="loader"></div>
+                    </button>
+                    <p class="error-msg" id="form-error"></p>
+                </form>
+
+                <!-- Prediction Output -->
+                <div class="prediction-output" id="output-box">
+                    <p class="label">Estimated Market Price</p>
+                    <h2 class="price" id="predicted-price">$0</h2>
+                    <div class="formula-box" id="model-formula">
+                        Loading model parameters...
+                    </div>
+                </div>
+            </section>
+
+            <!-- Visualizations Section -->
+            <section class="visuals-section">
+                <div class="card chart-card">
+                    <h3>Area vs Price Trend</h3>
+                    <div class="chart-container">
+                        <canvas id="scatterChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="card chart-card">
+                    <h3>Feature Importance (Weights)</h3>
+                    <div class="chart-container">
+                        <canvas id="weightChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <footer>
+        <p>Powered by Multiple Linear Regression &bull; FastAPI + Vanilla JS</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

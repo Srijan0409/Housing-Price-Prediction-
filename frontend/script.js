@@ -1,77 +1,169 @@
-// Configuration
-const API_BASE_URL = 'http://localhost:8000'; // Make sure the FastAPI is running here
+// Global variables for charts
+let areaPriceChart, actualPredChart, featureImpChart;
+let globalData = [];
+let modelInfo = null;
 
 // DOM Elements
-const form = document.getElementById('prediction-form');
-const submitBtn = document.getElementById('submit-btn');
-const loader = document.getElementById('loader');
-const btnText = submitBtn.querySelector('span');
-const outputBox = document.getElementById('output-box');
-const priceEl = document.getElementById('predicted-price');
-const formulaBox = document.getElementById('model-formula');
-const formError = document.getElementById('form-error');
+const predictForm = document.getElementById('prediction-form');
+const predictBtn = document.getElementById('predict-btn');
+const errorMsg = document.getElementById('error-message');
+const priceDisplay = document.getElementById('predicted-price');
+const confidenceBadge = document.getElementById('confidence-badge');
+const loadingSpinner = document.getElementById('loading-spinner');
+const modelEquation = document.getElementById('model-equation');
+const r2Value = document.getElementById('r2-value');
+const r2Fill = document.getElementById('r2-fill');
+const mseValue = document.getElementById('mse-value');
 
-// Chart instances (to destroy them before re-rendering)
-let scatterChartInstance = null;
-let weightChartInstance = null;
+// Base API URL
+const API_URL = 'http://127.0.0.1:8000';
 
-let datasetCache = null; // Store fetched data
+// Format currency
+const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0
+});
 
-// Initialize Dashboard
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Fetch Model Formula
+// Initialize dashboard
+async function initDashboard() {
     try {
-        const modelRes = await fetch(`${API_BASE_URL}/model_info`);
-        if(modelRes.ok) {
-            const modelInfo = await modelRes.json();
-            formulaBox.innerText = modelInfo.formula;
-            renderWeightChart(modelInfo.weights); // Graph 2
-        } else {
-            formulaBox.innerText = "Model info unavailable. Train it first.";
+        // Fetch base data for charts
+        const response = await fetch(`${API_URL}/data`);
+        if (response.ok) {
+            const result = await response.json();
+            globalData = result.data;
+            initCharts(globalData);
         }
-    } catch (e) {
-        formulaBox.innerText = "Error connecting to backend.";
+        
+        // Fetch model info
+        const infoResponse = await fetch(`${API_URL}/model_info`);
+        if (infoResponse.ok) {
+            modelInfo = await infoResponse.json();
+            updateModelInfoUI(modelInfo);
+            if(globalData.length > 0) {
+                updateFeatureImportanceChart(modelInfo.weights);
+            }
+        }
+    } catch (error) {
+        console.error("Error initializing dashboard:", error);
+    }
+}
+
+function updateModelInfoUI(info) {
+    if(info.formula) {
+        modelEquation.innerText = info.formula;
+    }
+}
+
+// Predict Price Handler
+predictForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorMsg.innerText = '';
+    
+    const area = parseFloat(document.getElementById('area').value);
+    const bedrooms = parseInt(document.getElementById('bedrooms').value);
+    const age = parseInt(document.getElementById('age').value);
+
+    if (area < 0 || bedrooms < 0 || age < 0) {
+        errorMsg.innerText = 'Please enter positive values.';
+        return;
     }
 
-    // 2. Fetch Dataset for Scatter Plot
+    // UI Loading state
+    loadingSpinner.classList.remove('hidden');
+    predictBtn.disabled = true;
+
     try {
-        const dataRes = await fetch(`${API_BASE_URL}/data`);
-        if(dataRes.ok) {
-            const dataData = await dataRes.json();
-            datasetCache = dataData.data;
-            renderScatterChart(datasetCache, null); // Render initial without user point
+        const response = await fetch(`${API_URL}/predict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ area, bedrooms, age })
+        });
+
+        if (!response.ok) {
+            throw new Error('Prediction failed. Is the backend running?');
         }
-    } catch (e) {
-        console.warn("Dataset not available for chart", e);
+
+        const data = await response.json();
+        
+        // Animate counter
+        animateValue(priceDisplay, 0, data.predicted_price, 1500);
+        confidenceBadge.classList.remove('hidden');
+        
+        // Update Performance Metrics
+        if (data.r2_score !== undefined) {
+            const r2Percentage = Math.max(0, data.r2_score * 100).toFixed(1);
+            r2Value.innerText = `${r2Percentage}%`;
+            r2Fill.style.width = `${r2Percentage}%`;
+        }
+        
+        if (data.mse !== undefined) {
+            // Format large numbers with M or K
+            let mseFormatted = data.mse;
+            if (data.mse > 1000000) mseFormatted = (data.mse / 1000000).toFixed(2) + 'M';
+            else if (data.mse > 1000) mseFormatted = (data.mse / 1000).toFixed(2) + 'K';
+            mseValue.innerText = mseFormatted;
+        }
+
+        // Highlight the predicted point on the charts
+        highlightPredictionOnCharts({ area, bedrooms, age }, data.predicted_price);
+
+    } catch (error) {
+        errorMsg.innerText = error.message;
+    } finally {
+        loadingSpinner.classList.add('hidden');
+        predictBtn.disabled = false;
     }
 });
 
-// Configure Chart.js global defaults for Dark Theme
-Chart.defaults.color = '#b0d8c9';
-Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+// Animate numbers
+function animateValue(obj, start, end, duration) {
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        // Easing function: easeOutQuart
+        const easeProgress = 1 - Math.pow(1 - progress, 4);
+        const currentVal = Math.floor(easeProgress * (end - start) + start);
+        obj.innerHTML = formatter.format(currentVal);
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
 
-function renderWeightChart(weights) {
-    const ctx = document.getElementById('weightChart').getContext('2d');
+// Chart.js Default styling
+Chart.defaults.color = '#B0C4DE';
+Chart.defaults.font.family = 'Outfit';
+
+function initCharts(data) {
+    const ctxArea = document.getElementById('area-price-chart').getContext('2d');
+    const ctxActualPred = document.getElementById('actual-pred-chart').getContext('2d');
+    const ctxFeatureImp = document.getElementById('feature-imp-chart').getContext('2d');
+
+    // 1. Area vs Price (Scatter)
+    const scatterData = data.map(d => ({ x: d.area, y: d.price }));
     
-    // Destroy if exists
-    if(weightChartInstance) weightChartInstance.destroy();
-
-    const labels = ['Area (sqft)', 'Bedrooms', 'Age (years)'];
-    const data = [weights.area, weights.bedrooms, weights.age];
-    
-    // Colors based on negative/positive impact
-    const bgColors = data.map(val => val < 0 ? 'rgba(255, 99, 132, 0.8)' : 'rgba(46, 204, 113, 0.8)');
-
-    weightChartInstance = new Chart(ctx, {
-        type: 'bar',
+    areaPriceChart = new Chart(ctxArea, {
+        type: 'scatter',
         data: {
-            labels: labels,
             datasets: [{
-                label: 'Coefficient Weight',
-                data: data,
-                backgroundColor: bgColors,
-                borderWidth: 0,
-                borderRadius: 4
+                label: 'Historical Data',
+                data: scatterData,
+                backgroundColor: 'rgba(27, 127, 220, 0.5)', // #1B7FDC
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }, {
+                label: 'Prediction',
+                data: [],
+                backgroundColor: '#0DB8D3', // Light Accent
+                borderColor: '#FFFFFF',
+                borderWidth: 2,
+                pointRadius: 8,
+                pointHoverRadius: 10,
+                pointStyle: 'star'
             }]
         },
         options: {
@@ -80,138 +172,121 @@ function renderWeightChart(weights) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: 'rgba(25, 53, 70, 0.9)',
+                    titleColor: '#0DB8D3',
                     callbacks: {
-                        label: (context) => `Impact per unit: $${parseFloat(context.raw).toFixed(2)}`
+                        label: (ctx) => `Area: ${ctx.parsed.x} sqft | Price: ${formatter.format(ctx.parsed.y)}`
                     }
                 }
             },
             scales: {
-                y: { beginAtZero: true }
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: 'Area (sq ft)' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: 'Price' } }
             }
         }
     });
-}
 
-function renderScatterChart(dataset, userPoint) {
-    const ctx = document.getElementById('scatterChart').getContext('2d');
+    // 2. Actual vs Predicted Distribution
+    const sortedPrices = [...data].sort((a,b) => a.price - b.price);
     
-    if(scatterChartInstance) scatterChartInstance.destroy();
-
-    // Format dataset -> {x: area, y: price}
-    const historicalData = dataset.map(item => ({ x: item.area, y: item.price }));
-    
-    const datasetsConfig = [{
-        label: 'Historical Data',
-        data: historicalData,
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        pointRadius: 5,
-        pointHoverRadius: 8
-    }];
-
-    // If user made a prediction, plot it distinctly
-    if (userPoint) {
-        datasetsConfig.push({
-            label: 'Your Prediction',
-            data: [{ x: userPoint.area, y: userPoint.price }],
-            backgroundColor: '#2ECC71',
-            borderColor: '#ffffff',
-            borderWidth: 2,
-            pointRadius: 8,
-            pointHoverRadius: 12
-        });
-    }
-
-    scatterChartInstance = new Chart(ctx, {
-        type: 'scatter',
-        data: { datasets: datasetsConfig },
+    actualPredChart = new Chart(ctxActualPred, {
+        type: 'line',
+        data: {
+            labels: sortedPrices.map((_, i) => i),
+            datasets: [{
+                label: 'Actual Prices',
+                data: sortedPrices.map(d => d.price),
+                borderColor: 'rgba(27, 127, 220, 0.5)', // #1B7FDC
+                backgroundColor: 'rgba(27, 127, 220, 0.05)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0
+            }, {
+                label: 'Predicted Value',
+                data: [],
+                borderColor: '#0DB8D3', // Light Accent
+                backgroundColor: 'rgba(13, 184, 211, 0.2)',
+                fill: false,
+                borderDash: [5, 5],
+                pointRadius: 5
+            }]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
+            plugins: { 
+                legend: { display: false },
                 tooltip: {
-                    callbacks: {
-                        label: (context) => `Area: ${context.raw.x} sqft | Price: $${context.raw.y.toLocaleString()}`
-                    }
+                    backgroundColor: 'rgba(25, 53, 70, 0.9)'
                 }
             },
             scales: {
-                x: { title: { display: true, text: 'Area (sq ft)' } },
-                y: { title: { display: true, text: 'Price ($)' } }
+                x: { display: false },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+
+    // 3. Feature Importance
+    featureImpChart = new Chart(ctxFeatureImp, {
+        type: 'bar',
+        data: {
+            labels: ['Area', 'Bedrooms', 'Age'],
+            datasets: [{
+                label: 'Weight',
+                data: [0, 0, 0],
+                backgroundColor: [
+                    'rgba(13, 184, 211, 0.8)', // #0DB8D3
+                    'rgba(27, 127, 220, 0.8)', // #1B7FDC
+                    'rgba(6, 91, 152, 0.8)'    // #065B98
+                ],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(25, 53, 70, 0.9)'
+                }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { grid: { display: false } }
             }
         }
     });
 }
 
-// Form Submission Handler
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    formError.innerText = '';
+function updateFeatureImportanceChart(weights) {
+    if(!featureImpChart) return;
     
-    const area = parseFloat(document.getElementById('area').value);
-    const bedrooms = parseInt(document.getElementById('bedrooms').value);
-    const age = parseInt(document.getElementById('age').value);
-
-    // Basic Validation
-    if(area <= 0 || bedrooms <= 0 || age < 0) {
-        formError.innerText = "Please enter valid positive numbers.";
-        return;
-    }
-
-    // UI Loading state
-    submitBtn.disabled = true;
-    loader.classList.remove('d-none');
-    btnText.style.opacity = '0';
-    outputBox.classList.remove('show');
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/predict`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ area, bedrooms, age })
-        });
-
-        if(!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.detail || 'Prediction failed');
-        }
-
-        const result = await response.json();
-        
-        // Success - Animate Number logic
-        animateValue(priceEl, 0, result.predicted_price, 1500);
-        outputBox.classList.add('show');
-        
-        // Update Chart with User's point
-        if(datasetCache) {
-            renderScatterChart(datasetCache, { area: area, price: result.predicted_price });
-        }
-
-    } catch (err) {
-        formError.innerText = err.message;
-    } finally {
-        submitBtn.disabled = false;
-        loader.classList.add('d-none');
-        btnText.style.opacity = '1';
-    }
-});
-
-// Smooth Number Counter Animation
-function animateValue(obj, start, end, duration) {
-    let startTimestamp = null;
-    const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        // easeOutQuart ease function
-        const easeProgress = 1 - Math.pow(1 - progress, 4);
-        const currentVal = Math.floor(easeProgress * (end - start) + start);
-        
-        obj.innerHTML = `$${currentVal.toLocaleString()}`;
-        
-        if (progress < 1) {
-            window.requestAnimationFrame(step);
-        } else {
-            obj.innerHTML = `$${end.toLocaleString()}`; // exact format at end
-        }
-    };
-    window.requestAnimationFrame(step);
+    // Normalize weights roughly for visualization
+    const max = Math.max(Math.abs(weights.area), Math.abs(weights.bedrooms), Math.abs(weights.age));
+    
+    featureImpChart.data.datasets[0].data = [
+        Math.abs(weights.area) / max * 100,
+        Math.abs(weights.bedrooms) / max * 100,
+        Math.abs(weights.age) / max * 100
+    ];
+    featureImpChart.update();
 }
+
+function highlightPredictionOnCharts(input, predictedPrice) {
+    if(!areaPriceChart || !actualPredChart) return;
+
+    // Update Scatter Plot
+    areaPriceChart.data.datasets[1].data = [{ x: input.area, y: predictedPrice }];
+    areaPriceChart.update();
+
+    // Update Line Chart (add horizontal line for predicted price)
+    const lineData = actualPredChart.data.labels.map(() => predictedPrice);
+    actualPredChart.data.datasets[1].data = lineData;
+    actualPredChart.update();
+}
+
+// Run init
+window.addEventListener('DOMContentLoaded', initDashboard);

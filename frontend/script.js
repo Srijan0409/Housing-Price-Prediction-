@@ -16,7 +16,8 @@ const r2Fill = document.getElementById('r2-fill');
 const mseValue = document.getElementById('mse-value');
 
 // Base API URL
-const API_URL = 'http://127.0.0.1:8000';
+// Replace with your actual backend URL when deployed
+const API_URL = 'https://void-housing-predictor-api.onrender.com';
 
 // Format currency
 const formatter = new Intl.NumberFormat('en-US', {

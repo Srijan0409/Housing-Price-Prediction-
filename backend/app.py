@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import joblib
 import os
 import pandas as pd
-import math
+from sklearn.metrics import r2_score, mean_squared_error
 
 app = FastAPI(title="Housing Price Predictor API")
 
@@ -18,8 +18,7 @@ app.add_middleware(
 )
 
 # Load the model
-# We determine path assuming app.py is in /backend and model.pkl is in root
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, 'model.pkl')
 DATA_PATH = os.path.join(BASE_DIR, 'data.csv')
 
@@ -28,6 +27,20 @@ try:
 except Exception as e:
     model = None
     print(f"Warning: Could not load model from {MODEL_PATH}. Error: {e}")
+
+# Calculate global metrics
+global_r2 = 0.0
+global_mse = 0.0
+if model is not None and os.path.exists(DATA_PATH):
+    try:
+        df = pd.read_csv(DATA_PATH)
+        X = df[['area', 'bedrooms', 'age']]
+        y_true = df['price']
+        y_pred = model.predict(X)
+        global_r2 = float(r2_score(y_true, y_pred))
+        global_mse = float(mean_squared_error(y_true, y_pred))
+    except Exception as e:
+        print(f"Warning: Could not calculate metrics. Error: {e}")
 
 # Pydantic schema for the prediction input
 class HouseFeatures(BaseModel):
@@ -43,7 +56,9 @@ def read_root():
 def predict_price(features: HouseFeatures):
     if model is None:
         raise HTTPException(status_code=500, detail="Model is not loaded. Please train it first.")
-    
+    if features.area <= 0 or features.bedrooms <= 0 or features.age < 0:
+        raise HTTPException(status_code=400, detail="Invalid inputs. Area and bedrooms must be positive, age cannot be negative.")
+
     # Create pandas dataframe matching training structures
     input_data = pd.DataFrame([
         [features.area, features.bedrooms, features.age]
@@ -51,11 +66,23 @@ def predict_price(features: HouseFeatures):
     
     # Predict Price
     prediction = model.predict(input_data)[0]
+    price = round(float(prediction), 2)
     
-    # Optional: we can apply a floor or ceil to make it realistic 
-    price = round(prediction, 2)
+    # Extract coefficients
+    w1, w2, w3 = [float(w) for w in model.coef_]
+    b = float(model.intercept_)
     
-    return {"predicted_price": price}
+    return {
+        "predicted_price": price,
+        "model_coefficients": {
+            "area": w1,
+            "bedrooms": w2,
+            "age": w3,
+            "intercept": b
+        },
+        "r2_score": global_r2,
+        "mse": global_mse
+    }
 
 @app.get("/model_info")
 def get_model_info():
@@ -63,8 +90,8 @@ def get_model_info():
         raise HTTPException(status_code=500, detail="Model is not loaded.")
     
     # Assuming standard Linear Regression mapping: area, bedrooms, age
-    w1, w2, w3 = model.coef_
-    b = model.intercept_
+    w1, w2, w3 = [float(w) for w in model.coef_]
+    b = float(model.intercept_)
     
     return {
         "formula": f"Price = ({w1:.2f} × Area) + ({w2:.2f} × Bedrooms) + ({w3:.2f} × Age) + {b:.2f}",
@@ -85,3 +112,8 @@ def get_data():
     # Convert to a list of dicts for frontend graphs
     data_list = df.to_dict(orient='records')
     return {"data": data_list}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -18,7 +18,7 @@ const mseValue = document.getElementById('mse-value');
 // Base API URL
 // Replace BACKEND_URL with your actual backend URL when deployed (e.g. https://your-backend-url.onrender.com)
 const BACKEND_URL = 'http://127.0.0.1:10000'; // Defaults to local server for testing
-const API_URL = BACKEND_URL;
+const API_URL = https://housing-price-prediction-11ou.onrender.com;
 
 // Format currency
 const formatter = new Intl.NumberFormat('en-US', {

@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import joblib
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask_cors import CORS(app, origins=["https://visionary-salmiakki-6f80e3.netlify.app"])
 from sklearn.metrics import r2_score, mean_squared_error
 
 app = Flask(__name__)

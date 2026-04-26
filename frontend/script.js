@@ -4,7 +4,7 @@ let globalData = [];
 let modelInfo = null;
 
 // DOM Elements
-const predictForm = document.getElementById('prediction-form');
+const predictForm = document.getElementById('predictionForm');
 const predictBtn = document.getElementById('predict-btn');
 const errorMsg = document.getElementById('error-message');
 const priceDisplay = document.getElementById('predicted-price');
@@ -16,9 +16,7 @@ const r2Fill = document.getElementById('r2-fill');
 const mseValue = document.getElementById('mse-value');
 
 // Base API URL
-// Replace BACKEND_URL with your actual backend URL when deployed (e.g. https://your-backend-url.onrender.com)
-const BACKEND_URL = 'http://127.0.0.1:10000'; // Defaults to local server for testing
-const API_URL = https//housing-price-prediction-11ou.onrender.com;
+const BACKEND_URL = 'https://housing-price-prediction-11ou.onrender.com';
 
 // Format currency
 const formatter = new Intl.NumberFormat('en-US', {
@@ -31,19 +29,19 @@ const formatter = new Intl.NumberFormat('en-US', {
 async function initDashboard() {
     try {
         // Fetch base data for charts
-        const response = await fetch(`${API_URL}/data`);
+        const response = await fetch(`${BACKEND_URL}/data`);
         if (response.ok) {
             const result = await response.json();
             globalData = result.data;
             initCharts(globalData);
         }
-        
+
         // Fetch model info
-        const infoResponse = await fetch(`${API_URL}/model_info`);
+        const infoResponse = await fetch(`${BACKEND_URL}/model_info`);
         if (infoResponse.ok) {
             modelInfo = await infoResponse.json();
             updateModelInfoUI(modelInfo);
-            if(globalData.length > 0) {
+            if (globalData.length > 0) {
                 updateFeatureImportanceChart(modelInfo.weights);
             }
         }
@@ -53,7 +51,7 @@ async function initDashboard() {
 }
 
 function updateModelInfoUI(info) {
-    if(info.formula) {
+    if (info.formula) {
         modelEquation.innerText = info.formula;
     }
 }
@@ -62,7 +60,7 @@ function updateModelInfoUI(info) {
 predictForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorMsg.innerText = '';
-    
+
     const area = parseFloat(document.getElementById('area').value);
     const bedrooms = parseInt(document.getElementById('bedrooms').value);
     const age = parseInt(document.getElementById('age').value);
@@ -77,7 +75,7 @@ predictForm.addEventListener('submit', async (e) => {
     predictBtn.disabled = true;
 
     try {
-        const response = await fetch(`${API_URL}/predict`, {
+        const response = await fetch(`${BACKEND_URL}/predict`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ area, bedrooms, age })
@@ -92,18 +90,18 @@ predictForm.addEventListener('submit', async (e) => {
         }
 
         const data = await response.json();
-        
+
         // Animate counter
         animateValue(priceDisplay, 0, data.predicted_price, 1500);
         confidenceBadge.classList.remove('hidden');
-        
+
         // Update Performance Metrics
         if (data.r2_score !== undefined) {
             const r2Percentage = Math.max(0, data.r2_score * 100).toFixed(1);
             r2Value.innerText = `${r2Percentage}%`;
             r2Fill.style.width = `${r2Percentage}%`;
         }
-        
+
         if (data.mse !== undefined) {
             // Format large numbers with M or K
             let mseFormatted = data.mse;
@@ -151,7 +149,7 @@ function initCharts(data) {
 
     // 1. Area vs Price (Scatter)
     const scatterData = data.map(d => ({ x: d.area, y: d.price }));
-    
+
     areaPriceChart = new Chart(ctxArea, {
         type: 'scatter',
         data: {
@@ -193,8 +191,8 @@ function initCharts(data) {
     });
 
     // 2. Actual vs Predicted Distribution
-    const sortedPrices = [...data].sort((a,b) => a.price - b.price);
-    
+    const sortedPrices = [...data].sort((a, b) => a.price - b.price);
+
     actualPredChart = new Chart(ctxActualPred, {
         type: 'line',
         data: {
@@ -220,7 +218,7 @@ function initCharts(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(25, 53, 70, 0.9)'
@@ -253,7 +251,7 @@ function initCharts(data) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(25, 53, 70, 0.9)'
@@ -268,11 +266,11 @@ function initCharts(data) {
 }
 
 function updateFeatureImportanceChart(weights) {
-    if(!featureImpChart) return;
-    
+    if (!featureImpChart) return;
+
     // Normalize weights roughly for visualization
     const max = Math.max(Math.abs(weights.area), Math.abs(weights.bedrooms), Math.abs(weights.age));
-    
+
     featureImpChart.data.datasets[0].data = [
         Math.abs(weights.area) / max * 100,
         Math.abs(weights.bedrooms) / max * 100,
@@ -282,7 +280,7 @@ function updateFeatureImportanceChart(weights) {
 }
 
 function highlightPredictionOnCharts(input, predictedPrice) {
-    if(!areaPriceChart || !actualPredChart) return;
+    if (!areaPriceChart || !actualPredChart) return;
 
     // Update Scatter Plot
     areaPriceChart.data.datasets[1].data = [{ x: input.area, y: predictedPrice }];

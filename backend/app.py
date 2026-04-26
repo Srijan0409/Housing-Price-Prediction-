@@ -3,11 +3,12 @@ import pandas as pd
 import joblib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+CORS(app, origins=["https://visionary-salmiakki-6f80e3.netlify.app/"])
 from sklearn.metrics import r2_score, mean_squared_error
 
 app = Flask(__name__)
 # Enable CORS
-CORS(app, origins=["https://visionary-salmiakki-6f80e3.netlify.app"])
+CORS(app, origins=["https://visionary-salmiakki-6f80e3.netlify.app/"])
 
 # Load the model
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

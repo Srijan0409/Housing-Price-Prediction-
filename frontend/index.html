@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Housing Price Predictor</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="logo">
+                <span class="logo-text">void</span>
+            </div>
+            <p class="subtitle">Housing Price Predictor</p>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active">
+                    <i class="ph ph-squares-four"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#predict-section" class="nav-item">
+                    <i class="ph ph-magic-wand"></i>
+                    <span>Predict Price</span>
+                </a>
+                <a href="#visualizations" class="nav-item">
+                    <i class="ph ph-chart-line-up"></i>
+                    <span>Visualizations</span>
+                </a>
+                <a href="#insights" class="nav-item">
+                    <i class="ph ph-brain"></i>
+                    <span>Model Insights</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="ph ph-info"></i>
+                    <span>About</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="info-card glass-card">
+                <i class="ph ph-sparkle glow-icon"></i>
+                <div class="info-text">
+                    <strong>Smart. Simple. Accurate.</strong>
+                    <p>AI-driven estimations.</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>Welcome back, Srijan <span class="wave">👋</span></h1>
+                <p>Let's predict the perfect price</p>
+            </div>
+            <div class="header-right">
+                <button class="btn-primary" onclick="document.getElementById('area').focus()">
+                    <i class="ph ph-plus"></i> New Prediction
+                </button>
+                <div class="avatar">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Srijan&backgroundColor=7b61ff" alt="Profile">
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            
+            <!-- Center Focus (Input & Output) -->
+            <div class="center-focus" id="predict-section">
+                <!-- Input Panel -->
+                <div class="card glass-card input-panel">
+                    <div class="card-header">
+                        <i class="ph ph-house-line"></i>
+                        <h2>Property Details</h2>
+                    </div>
+                    <form id="predictionForm">
+                        <div class="input-group">
+                            <i class="ph ph-selection-all"></i>
+                            <input type="number" id="area" placeholder=" " required min="100">
+                            <label for="area">Area (sq ft)</label>
+                        </div>
+                        <div class="input-group">
+                            <i class="ph ph-bed"></i>
+                            <input type="number" id="bedrooms" placeholder=" " required min="1">
+                            <label for="bedrooms">Bedrooms</label>
+                        </div>
+                        <div class="input-group">
+                            <i class="ph ph-calendar-blank"></i>
+                            <input type="number" id="age" placeholder=" " required min="0">
+                            <label for="age">Age of Property (Years)</label>
+                        </div>
+                        <button type="submit" class="btn-predict" id="predict-btn">
+                            <span>Predict Price</span>
+                            <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </form>
+                    <div id="error-message" class="error-msg"></div>
+                </div>
+
+                <!-- Output Panel -->
+                <div class="card glass-card output-panel">
+                    <div class="output-content">
+                        <div class="price-display">
+                            <p class="subtitle">Predicted Price</p>
+                            <h2 class="price-value" id="predicted-price">$0</h2>
+                            <p class="estimated-text">Estimated Market Price</p>
+                            <div class="confidence-badge hidden" id="confidence-badge">
+                                <i class="ph ph-check-circle"></i> High Confidence
+                            </div>
+                        </div>
+                        <div class="visual-element">
+                            <img src="house.png" alt="3D House" class="house-img" id="house-img">
+                            <div class="glow-orb"></div>
+                        </div>
+                    </div>
+                    <!-- Loading overlay -->
+                    <div class="loading-overlay hidden" id="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Analyzing market data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar (Insights) -->
+            <div class="insights-panel" id="insights">
+                <!-- Model Equation -->
+                <div class="card glass-card insight-card">
+                    <div class="card-header">
+                        <i class="ph ph-function"></i>
+                        <h3>Linear Regression Model</h3>
+                    </div>
+                    <div class="equation-box">
+                        <p id="model-equation">Loading equation...</p>
+                    </div>
+                    <div class="equation-labels">
+                        <span class="badge">w1: Area</span>
+                        <span class="badge">w2: Beds</span>
+                        <span class="badge">w3: Age</span>
+                        <span class="badge">b: Base</span>
+                    </div>
+                </div>
+
+                <!-- Model Performance -->
+                <div class="card glass-card insight-card">
+                    <div class="card-header">
+                        <i class="ph ph-gauge"></i>
+                        <h3>Model Performance</h3>
+                    </div>
+                    <div class="performance-metric">
+                        <div class="metric-header">
+                            <span>R² Score</span>
+                            <span id="r2-value">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="r2-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="performance-metric">
+                        <div class="metric-header">
+                            <span>Mean Squared Error</span>
+                            <span id="mse-value">--</span>
+                        </div>
+                        <p class="mse-subtext">Lower is better</p>
+                    </div>
+                    <div class="mini-chart-container">
+                        <canvas id="mini-perf-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Visualizations Section -->
+        <div class="visualizations-section" id="visualizations">
+            <h2 class="section-title">Data Insights</h2>
+            <div class="charts-grid">
+                <div class="card glass-card chart-card">
+                    <h3>Area vs Price</h3>
+                    <div class="chart-container">
+                        <canvas id="area-price-chart"></canvas>
+                    </div>
+                </div>
+                <div class="card glass-card chart-card">
+                    <h3>Actual vs Predicted</h3>
+                    <div class="chart-container">
+                        <canvas id="actual-pred-chart"></canvas>
+                    </div>
+                </div>
+                <div class="card glass-card chart-card">
+                    <h3>Feature Importance</h3>
+                    <div class="chart-container">
+                        <canvas id="feature-imp-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Made with ❤️ by Srijan</p>
+        </footer>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
